@@ -1,0 +1,144 @@
+##HTML VERSION
+
+
+#!/bin/bash
+
+_subscriptionId="ad265e87-5b4c-4c3c-b490-939e5907c6a5"
+
+BOLD=$(tput bold)
+RESET=$(tput sgr0)
+RED='\033[0;31m'
+BRIGHTRED='\e[91m'
+GREEN='\033[0;32m'
+YELLOW='\033[0;33m'
+BORDER="\e[47m\e[30m"
+
+# Define color codes for green, red, and reset
+color_enabled="\e[32m"    # Green for "ENABLED"
+color_disabled="\e[93;1m" # Yellow for "DISABLED"
+color_reset="\e[0m"       # Reset to default color
+
+# HTML Output file
+html_output="app_service_recommendations3.html"
+
+# Start HTML file
+echo "<html lang='en'>" > $html_output
+echo "<head><meta charset='UTF-8'><meta name='viewport' content='width=device-width, initial-scale=1.0'><title>Azure App Service Recommendations</title>" >> $html_output
+echo "<style>body { font-family: Arial, sans-serif; margin: 0; padding: 20px; background-color: #f4f4f4; }" >> $html_output
+echo "table { width: 100%; border-collapse: collapse; margin: 20px 0; }" >> $html_output
+echo "th, td { padding: 12px; text-align: left; border: 1px solid #ddd; }" >> $html_output
+echo "th { background-color: #4CAF50; color: white; }" >> $html_output
+echo "tr:nth-child(even) { background-color: #f2f2f2; }" >> $html_output
+echo "h2 { text-align: center; color: #333; }" >> $html_output
+echo "h3 { color: #4CAF50; }" >> $html_output
+echo ".warning { color: red; font-weight: bold; }" >> $html_output
+echo ".success { color: green; font-weight: bold; }" >> $html_output
+echo "</style></head>" >> $html_output
+echo "<body>" >> $html_output
+
+# Add header section
+echo "<h2>Azure App Services Recommendations</h2>" >> $html_output
+echo "<hr>" >> $html_output
+
+# App Services Common Configuration Table
+echo "<h3>App Services Common Configuration Best Practices </h3>" >> $html_output
+echo "<table>" >> $html_output
+echo "<thead><tr><th>APP SERVICE NAME</th><th>AUTO HEAL</th><th>HEALTH CHECK</th><th>ALWAYS ON</th></tr></thead>" >> $html_output
+echo "<tbody>" >> $html_output
+
+_diplayAppServiceRecommendations_common=0
+_webApps=$(az webapp list --subscription $_subscriptionId --query "[].{name:name, resourceGroup:resourceGroup}" --output jsonc)
+for item in $(echo "$_webApps" | jq -r '.[] | @base64'); do
+    _jq() {
+        echo ${item} | base64 --decode | jq -r ${1}
+    }
+    _name=$(_jq '.name')
+    _resourceGroup=$(_jq '.resourceGroup')
+    _autoHealEnabled=$(az webapp config show --subscription $_subscriptionId --resource-group $_resourceGroup --name $_name --query "autoHealEnabled" --output tsv | grep -q "^true$" && echo "ENABLED" || echo "DISABLED")
+    _healthCheckPath=$(az webapp config show --subscription $_subscriptionId --resource-group $_resourceGroup --name $_name --query "healthCheckPath" --output tsv | grep -q . && echo "ENABLED" || echo "DISABLED")
+    _alwaysOn=$(az webapp config show --subscription $_subscriptionId --resource-group $_resourceGroup --name $_name --query "alwaysOn" --output tsv | grep -q "^true$" && echo "ENABLED" || echo "DISABLED")
+
+    # Apply colors conditionally for each field
+    if [[ "$_autoHealEnabled" == "ENABLED" ]]; then
+        autoHealColor="<span style='color: green;'>$_autoHealEnabled</span>"
+    elif [[ "$_autoHealEnabled" == "DISABLED" ]]; then
+        autoHealColor="<span style='color: red;'>$_autoHealEnabled</span>"
+    else
+        autoHealColor="$_autoHealEnabled"
+    fi
+
+    if [[ "$_healthCheckPath" == "ENABLED" ]]; then
+        healthCheckColor="<span style='color: green;'>$_healthCheckPath</span>"
+    elif [[ "$_healthCheckPath" == "DISABLED" ]]; then
+        healthCheckColor="<span style='color: red;'>$_healthCheckPath</span>"
+    else
+        healthCheckColor="$_healthCheckPath"
+    fi
+
+    if [[ "$_alwaysOn" == "ENABLED" ]]; then
+        alwaysOnColor="<span style='color: green;'>$_alwaysOn</span>"
+    elif [[ "$_alwaysOn" == "DISABLED" ]]; then
+        alwaysOnColor="<span style='color: red;'>$_alwaysOn</span>"
+    else
+        alwaysOnColor="$_alwaysOn"
+    fi
+
+    # Append to HTML Table
+    echo "<tr><td>$_name</td><td>$autoHealColor</td><td>$healthCheckColor</td><td>$alwaysOnColor</td></tr>" >> $html_output
+done
+
+echo "</tbody></table>" >> $html_output
+
+# App Service Plan Section
+echo "<h3>App Service Plan Recommendations</h3>" >> $html_output
+echo "<table>" >> $html_output
+echo "<thead><tr><th>APP SERVICE PLAN</th><th>SIZE</th><th>TIER</th><th>RECOMMENDED APPS COUNT</th><th>CURRENT APPS COUNT</th></tr></thead>" >> $html_output
+echo "<tbody>" >> $html_output
+
+_diplayAppServicePlanRecommendations_density=0
+_diplayAppServicePlanRecommendations_cost=0
+
+app_service_plans=$(az appservice plan list --subscription $_subscriptionId --query "[].{Name:name, ResourceGroup:resourceGroup}" --output tsv)
+while IFS=$'\t' read -r name resource_group; do
+    webapp_count=$(az webapp list --subscription $_subscriptionId --query "[?appServicePlanId=='/subscriptions/$_subscriptionId/resourceGroups/$resource_group/providers/Microsoft.Web/serverfarms/$name'] | length(@)" -o tsv)
+    webapp_info=$(az appservice plan show --name $name --subscription $_subscriptionId --resource-group $resource_group --query "{tier:sku.tier, size:sku.name, workers:sku.capacity}" --output json)
+    webapp_worker=$(echo "$webapp_info" | jq -r '.workers')
+    webapp_size=$(echo "$webapp_info" | jq -r '.size')
+    webapp_tier=$(echo "$webapp_info" | jq -r '.tier')
+
+    # App Service Plan Density Check
+    if [ "$_diplayAppServicePlanRecommendations_density" -eq 0 ]; then
+        _diplayAppServicePlanRecommendations_density=1
+        echo "<h4>App Service Plan Density Check</h4>" >> $html_output
+        echo "<table>" >> $html_output
+        echo "<thead><tr><th>APP SERVICE PLAN</th><th>SIZE</th><th>TIER</th><th>RECOMMENDED APPS COUNT</th><th>CURRENT APPS COUNT</th></tr></thead>" >> $html_output
+    fi
+
+    # Set colors based on webapp_count
+    if [ "$webapp_count" -gt 1 ]; then
+        HighCount="<span style='color: orange;'>$webapp_count</span>"
+    else
+        HighCount="$webapp_count"
+    fi
+
+    # Check and display App Service Plan recommendations
+    echo "<tr><td>$name</td><td>$webapp_size</td><td>$webapp_tier</td><td>8</td><td>$HighCount</td></tr>" >> $html_output
+
+    # Cost Recommendations
+    if [ "$webapp_count" -eq 0 ]; then
+        if [ "$_diplayAppServicePlanRecommendations_cost" -eq 0 ]; then
+            echo "<h4>App Service Plan Cost Recommendations</h4>" >> $html_output
+            _diplayAppServicePlanRecommendations_cost=1
+            echo "<table>" >> $html_output
+			 echo "<p class='warning'>The following app service plan has no app services, review and delete to optimize the cost.</p>" >> $html_output
+            echo "<thead><tr><th>APP SERVICE PLAN</th><th>App Count</th></tr></thead>" >> $html_output
+        fi
+        echo "<tr><td>$name</td><td>0</td></tr>" >> $html_output
+    fi
+done <<<"$app_service_plans"
+
+# End HTML content
+echo "</tbody></table>" >> $html_output
+echo "<hr>" >> $html_output
+echo "<footer><p style='text-align: center;'>End of Recommendations - More to Come</p></footer>" >> $html_output
+echo

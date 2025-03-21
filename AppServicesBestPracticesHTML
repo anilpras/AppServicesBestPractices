@@ -3,7 +3,7 @@
 
 #!/bin/bash
 
-_subscriptionId=""
+_subscriptionId="ad265e87-5b4c-4c3c-b490-939e5907c6a5"
 
 BOLD=$(tput bold)
 RESET=$(tput sgr0)
@@ -19,7 +19,7 @@ color_disabled="\e[93;1m" # Yellow for "DISABLED"
 color_reset="\e[0m"       # Reset to default color
 
 # HTML Output file
-html_output="0.html"
+html_output="02.html"
 
 # Start HTML file
 echo "<html lang='en'>" > $html_output
@@ -43,7 +43,7 @@ echo "<hr>" >> $html_output
 # App Services Common Configuration Table
 echo "<h4>App Services Common Configuration Best Practices </h4>" >> $html_output
 echo "<table>" >> $html_output
-echo "<thead><tr><th>APP SERVICE NAME</th><th>AUTO HEAL</th><th>HEALTH CHECK</th><th>ALWAYS ON</th></tr></thead>" >> $html_output
+echo "<thead><tr><th>APP SERVICE NAME</th><th>AUTO HEAL</th><th>HEALTH CHECK</th><th>ALWAYS ON</th><th>TLS Secure?</th></tr></thead>" >> $html_output
 echo "<tbody>" >> $html_output
 
 _diplayAppServiceRecommendations_common=0
@@ -57,6 +57,15 @@ for item in $(echo "$_webApps" | jq -r '.[] | @base64'); do
     _autoHealEnabled=$(az webapp config show --subscription $_subscriptionId --resource-group $_resourceGroup --name $_name --query "autoHealEnabled" --output tsv | grep -q "^true$" && echo "ENABLED" || echo "DISABLED")
     _healthCheckPath=$(az webapp config show --subscription $_subscriptionId --resource-group $_resourceGroup --name $_name --query "healthCheckPath" --output tsv | grep -q . && echo "ENABLED" || echo "DISABLED")
     _alwaysOn=$(az webapp config show --subscription $_subscriptionId --resource-group $_resourceGroup --name $_name --query "alwaysOn" --output tsv | grep -q "^true$" && echo "ENABLED" || echo "DISABLED")
+   
+    _minTlsVersion=$(az webapp config show --subscription $_subscriptionId --resource-group $_resourceGroup --name $_name --query "minTlsVersion" --output tsv)
+    
+             
+    if echo "$_minTlsVersion" | grep -qE '^(1\.[2-9]|[2-9]\.[0-9])'; then
+        _minTlsVersionStatus="$_minTlsVersion Secure"
+    else
+        _minTlsVersionStatus="$_minTlsVersion Vulnerable"
+    fi
 
     # Apply colors conditionally for each field
     if [[ "$_autoHealEnabled" == "ENABLED" ]]; then
@@ -83,12 +92,20 @@ for item in $(echo "$_webApps" | jq -r '.[] | @base64'); do
         alwaysOnColor="$_alwaysOn"
     fi
 
+    # Compare and apply color formatting based on status
+    if [[ "$_minTlsVersionStatus" =~ "Secure" ]]; then
+          minTlsVersionColor="<span style='color: green;'>$_minTlsVersionStatus</span>"
+    elif [[ "$_minTlsVersionStatus" =~ "Vulnerable" ]]; then
+         minTlsVersionColor="<span style='color: rgb(155, 27, 27);'>$_minTlsVersionStatus</span>"
+    else
+          minTlsVersionColor="$_minTlsVersionStatus"
+    fi
+
     # Append to HTML Table
-    echo "<tr><td>$_name</td><td>$autoHealColor</td><td>$healthCheckColor</td><td>$alwaysOnColor</td></tr>" >> $html_output
+    echo "<tr><td>$_name</td><td>$autoHealColor</td><td>$healthCheckColor</td><td>$alwaysOnColor</td><td>$minTlsVersionStatus</td></tr>" >> $html_output
 done
 
 echo "</tbody></table>" >> $html_output
-
 
 _diplayAppServicePlanRecommendations_density=0
 _diplayAppServicePlanRecommendations_cost=0
@@ -162,6 +179,5 @@ echo "<li><strong>Always On:</strong> Always On keeps your app continuously warm
 echo "<li><strong>Density Check:</strong> Perform a density check on your App Service Plan to ensure your resources align with usage. This improves both performance and cost-efficiency.</li>" >> $html_output
 echo "</ul>" >> $html_output
 echo "</div>" >> $html_output
-
 echo "<footer><p style='text-align: center;'>End of Recommendations - More to Come</p></footer>" >> $html_output
 echo

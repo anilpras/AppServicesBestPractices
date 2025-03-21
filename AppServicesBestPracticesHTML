@@ -3,7 +3,7 @@
 
 #!/bin/bash
 
-_subscriptionId="ad265e87-5b4c-4c3c-b490-939e5907c6a5"
+_subscriptionId=""
 
 BOLD=$(tput bold)
 RESET=$(tput sgr0)

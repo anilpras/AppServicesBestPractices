@@ -70,7 +70,7 @@ for item in $(echo "$_webApps" | jq -r '.[] | @base64'); do
     if [[ "$_healthCheckPath" == "ENABLED" ]]; then
         healthCheckColor="<span style='color: green;'>$_healthCheckPath</span>"
     elif [[ "$_healthCheckPath" == "DISABLED" ]]; then
-        healthCheckColor="<span style='color: red;'>$_healthCheckPath</span>"
+        healthCheckColor="<span style='color: rgb(155, 27, 27);'>$_healthCheckPath</span>"
     else
         healthCheckColor="$_healthCheckPath"
     fi
@@ -88,6 +88,8 @@ for item in $(echo "$_webApps" | jq -r '.[] | @base64'); do
 done
 
 echo "</tbody></table>" >> $html_output
+
+
 
 # App Service Plan Section
 echo "<h3>App Service Plan Recommendations</h3>" >> $html_output

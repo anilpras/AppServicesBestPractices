@@ -19,7 +19,7 @@ color_disabled="\e[93;1m" # Yellow for "DISABLED"
 color_reset="\e[0m"       # Reset to default color
 
 # HTML Output file
-html_output="app_service_recommendations3.html"
+html_output="app_service_recommendations0.html"
 
 # Start HTML file
 echo "<html lang='en'>" > $html_output
@@ -41,7 +41,7 @@ echo "<h2>Azure App Services Recommendations</h2>" >> $html_output
 echo "<hr>" >> $html_output
 
 # App Services Common Configuration Table
-echo "<h3>App Services Common Configuration Best Practices </h3>" >> $html_output
+echo "<h4>App Services Common Configuration Best Practices </h4>" >> $html_output
 echo "<table>" >> $html_output
 echo "<thead><tr><th>APP SERVICE NAME</th><th>AUTO HEAL</th><th>HEALTH CHECK</th><th>ALWAYS ON</th></tr></thead>" >> $html_output
 echo "<tbody>" >> $html_output
@@ -62,7 +62,7 @@ for item in $(echo "$_webApps" | jq -r '.[] | @base64'); do
     if [[ "$_autoHealEnabled" == "ENABLED" ]]; then
         autoHealColor="<span style='color: green;'>$_autoHealEnabled</span>"
     elif [[ "$_autoHealEnabled" == "DISABLED" ]]; then
-        autoHealColor="<span style='color: red;'>$_autoHealEnabled</span>"
+        autoHealColor="<span style='color: rgb(155, 27, 27);'>$_autoHealEnabled</span>"
     else
         autoHealColor="$_autoHealEnabled"
     fi
@@ -78,7 +78,7 @@ for item in $(echo "$_webApps" | jq -r '.[] | @base64'); do
     if [[ "$_alwaysOn" == "ENABLED" ]]; then
         alwaysOnColor="<span style='color: green;'>$_alwaysOn</span>"
     elif [[ "$_alwaysOn" == "DISABLED" ]]; then
-        alwaysOnColor="<span style='color: red;'>$_alwaysOn</span>"
+        alwaysOnColor="<span style='color: rgb(155, 27, 27);'>$_alwaysOn</span>"
     else
         alwaysOnColor="$_alwaysOn"
     fi
@@ -89,13 +89,6 @@ done
 
 echo "</tbody></table>" >> $html_output
 
-
-
-# App Service Plan Section
-echo "<h3>App Service Plan Recommendations</h3>" >> $html_output
-echo "<table>" >> $html_output
-echo "<thead><tr><th>APP SERVICE PLAN</th><th>SIZE</th><th>TIER</th><th>RECOMMENDED APPS COUNT</th><th>CURRENT APPS COUNT</th></tr></thead>" >> $html_output
-echo "<tbody>" >> $html_output
 
 _diplayAppServicePlanRecommendations_density=0
 _diplayAppServicePlanRecommendations_cost=0
@@ -108,10 +101,9 @@ while IFS=$'\t' read -r name resource_group; do
     webapp_size=$(echo "$webapp_info" | jq -r '.size')
     webapp_tier=$(echo "$webapp_info" | jq -r '.tier')
 
-    # App Service Plan Density Check
+  
     if [ "$_diplayAppServicePlanRecommendations_density" -eq 0 ]; then
         _diplayAppServicePlanRecommendations_density=1
-        echo "<h4>App Service Plan Density Check</h4>" >> $html_output
         echo "<table>" >> $html_output
         echo "<thead><tr><th>APP SERVICE PLAN</th><th>SIZE</th><th>TIER</th><th>RECOMMENDED APPS COUNT</th><th>CURRENT APPS COUNT</th></tr></thead>" >> $html_output
     fi
@@ -122,8 +114,7 @@ while IFS=$'\t' read -r name resource_group; do
     else
         HighCount="$webapp_count"
     fi
-	
-	
+		
     # Determine the recommended number of apps based on the plan size
     if [[ "$webapp_size" =~ ^(B1|S1|P1v2|I1v1|P0v3|P1)$ ]]; then
         recommended_apps="8"

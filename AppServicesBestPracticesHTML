@@ -19,7 +19,7 @@ color_disabled="\e[93;1m" # Yellow for "DISABLED"
 color_reset="\e[0m"       # Reset to default color
 
 # HTML Output file
-html_output="app_service_recommendations0.html"
+html_output="0.html"
 
 # Start HTML file
 echo "<html lang='en'>" > $html_output
@@ -151,6 +151,17 @@ done <<<"$app_service_plans"
 
 # End HTML content
 echo "</tbody></table>" >> $html_output
-echo "<hr>" >> $html_output
+
+# Adding the recommendation section on the right
+echo "<div class='right-sidebar'>" >> $html_output
+echo "<h3>Best Practices & Recommendations</h3>" >> $html_output
+echo "<ul>" >> $html_output
+echo "<li><strong>Auto Heal:</strong> Enable Auto Heal to automatically restart your app when it encounters issues. This enhances the availability of your app.</li>" >> $html_output
+echo "<li><strong>Health Check:</strong> Implement a health check to proactively monitor your app's health. This minimizes downtime and ensures your app is running optimally.</li>" >> $html_output
+echo "<li><strong>Always On:</strong> Always On keeps your app continuously warm, preventing time delays during the first request after idle periods, ensuring faster response times.</li>" >> $html_output
+echo "<li><strong>Density Check:</strong> Perform a density check on your App Service Plan to ensure your resources align with usage. This improves both performance and cost-efficiency.</li>" >> $html_output
+echo "</ul>" >> $html_output
+echo "</div>" >> $html_output
+
 echo "<footer><p style='text-align: center;'>End of Recommendations - More to Come</p></footer>" >> $html_output
 echo

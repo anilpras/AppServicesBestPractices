@@ -120,10 +120,29 @@ while IFS=$'\t' read -r name resource_group; do
     else
         HighCount="$webapp_count"
     fi
+	
+	
+    # Determine the recommended number of apps based on the plan size
+    if [[ "$webapp_size" =~ ^(B1|S1|P1v2|I1v1|P0v3|P1)$ ]]; then
+        recommended_apps="8"
+    elif [[ "$webapp_size" =~ ^(B2|S2|P2v2|I2v1|P2)$ ]]; then
+        recommended_apps="16"
+    elif [[ "$webapp_size" =~ ^(B3|S3|P3v2|I3v1|P3)$ ]]; then
+        recommended_apps="32"
+    elif [[ "$webapp_size" =~ ^(P1v3|I1v2)$ ]]; then
+        recommended_apps="16"
+    elif [[ "$webapp_size" =~ ^(P2v3|I2v2)$ ]]; then
+        recommended_apps="32"
+    elif [[ "$webapp_size" =~ ^(P3v3|I3v2)$ ]]; then
+        recommended_apps="64"
+    elif [[ "$webapp_size" =~ ^(EP1)$ ]]; then
+        recommended_apps="N/A"
+    fi
 
-    # Check and display App Service Plan recommendations
-    echo "<tr><td>$name</td><td>$webapp_size</td><td>$webapp_tier</td><td>8</td><td>$HighCount</td></tr>" >> $html_output
+ # Output to HTML Table
+    echo "<tr><td>${name}</td><td>${webapp_size}</td><td>${webapp_tier}</td><td>${recommended_apps}</td><td>${webapp_count}</td></tr>" >> $html_output
 
+    
     # Cost Recommendations
     if [ "$webapp_count" -eq 0 ]; then
         if [ "$_diplayAppServicePlanRecommendations_cost" -eq 0 ]; then

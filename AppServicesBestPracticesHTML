@@ -1,10 +1,9 @@
-##HTML VERSION
-
-
 #!/bin/bash
 
+# Subscription ID and other variables
 _subscriptionId="ad265e87-5b4c-4c3c-b490-939e5907c6a5"
 
+# Define color codes for formatting
 BOLD=$(tput bold)
 RESET=$(tput sgr0)
 RED='\033[0;31m'
@@ -12,193 +11,221 @@ BRIGHTRED='\e[91m'
 GREEN='\033[0;32m'
 YELLOW='\033[0;33m'
 BORDER="\e[47m\e[30m"
+color_enabled="\e[32m"
+color_disabled="\e[93;1m"
+color_reset="\e[0m"
 
-# Define color codes for green, red, and reset
-color_enabled="\e[32m"    # Green for "ENABLED"
-color_disabled="\e[93;1m" # Yellow for "DISABLED"
-color_reset="\e[0m"       # Reset to default color
+# HTML output file
+html_output="DarkTheme.html"
 
-# HTML Output file
-html_output="0.html"
+# Function to initialize the HTML structure
+initialize_html() {
+   echo "<html lang='en'>" > $html_output
+    echo "<head><meta charset='UTF-8'><meta name='viewport' content='width=device-width, initial-scale=1.0'><title>Azure App Service Recommendations</title>" >> $html_output
+    echo "<style>body { font-family: 'Tahoma', sans-serif; font-size: 14px; margin: 0; padding: 20px; background-color: #2E3B4E; color: #D6E1E9; }" >> $html_output
+    echo "h2 { text-align: center; color: #A2C4D8; font-size: 28px; font-weight: bold; font-family: 'Arial', sans-serif; }" >> $html_output
+    echo "h3 { color: #4FC3F7; font-size: 20px; font-weight: bold; text-align: left; }" >> $html_output
+    echo "p { font-size: 14px; color: #BCC2D3; line-height: 1.6; }" >> $html_output
+    echo "table { width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 14px; }" >> $html_output
+    echo "th, td { padding: 12px; text-align: left; border: 1px solid #BCC2D3; }" >> $html_output
+    echo "th { background-color: #3E4C61; color: white; text-align: center; font-size: 16px; }" >> $html_output
+    echo "tr:nth-child(even) { background-color: #3B4A61; }" >> $html_output
+    echo "a { color: #A2C4D8; text-decoration: none; }" >> $html_output
+    echo "a:hover { color: #FFFFFF; }" >> $html_output
+    echo "</style></head>" >> $html_output
+    echo "<body>" >> $html_output
+}
 
-# Start HTML file
-echo "<html lang='en'>" > $html_output
-echo "<head><meta charset='UTF-8'><meta name='viewport' content='width=device-width, initial-scale=1.0'><title>Azure App Service Recommendations</title>" >> $html_output
-echo "<style>body { font-family: Arial, sans-serif; margin: 0; padding: 20px; background-color: #f4f4f4; }" >> $html_output
-echo "table { width: 100%; border-collapse: collapse; margin: 20px 0; }" >> $html_output
-echo "th, td { padding: 12px; text-align: left; border: 1px solid #ddd; }" >> $html_output
-echo "th { background-color: #4CAF50; color: white; }" >> $html_output
-echo "tr:nth-child(even) { background-color: #f2f2f2; }" >> $html_output
-echo "h2 { text-align: center; color: #333; }" >> $html_output
-echo "h3 { color: #4CAF50; }" >> $html_output
-echo ".warning { color: red; font-weight: bold; }" >> $html_output
-echo ".success { color: green; font-weight: bold; }" >> $html_output
-echo "</style></head>" >> $html_output
-echo "<body>" >> $html_output
+# Function to generate the App Services Configuration Table
+generate_app_service_config_table() {
+    echo "<h2>App Services Common Configuration Best Practices</h2>" >> $html_output
+    echo "Subscription Id - $_subscriptionId" >> $html_output
+    echo "<table><thead><tr><th>APP SERVICE NAME</th><th>AUTO HEAL</th><th>HEALTH CHECK</th><th>ALWAYS ON</th><th>TLS Secure?</th><th>FTPs State</th></tr></thead><tbody>" >> $html_output
 
-# Add header section
-echo "<h2>Azure App Services Recommendations</h2>" >> $html_output
-echo "<hr>" >> $html_output
-
-# App Services Common Configuration Table
-echo "<h4>App Services Common Configuration Best Practices </h4>" >> $html_output
-echo "<table>" >> $html_output
-echo "<thead><tr><th>APP SERVICE NAME</th><th>AUTO HEAL</th><th>HEALTH CHECK</th><th>ALWAYS ON</th><th>TLS Secure?</th><th>FTPs State</th></tr></thead>" >> $html_output
-echo "<tbody>" >> $html_output
-
-_diplayAppServiceRecommendations_common=0
-_webApps=$(az webapp list --subscription $_subscriptionId --query "[].{name:name, resourceGroup:resourceGroup}" --output jsonc)
-for item in $(echo "$_webApps" | jq -r '.[] | @base64'); do
-    _jq() {
-        echo ${item} | base64 --decode | jq -r ${1}
-    }
-    _name=$(_jq '.name')
-    _resourceGroup=$(_jq '.resourceGroup')
-    _autoHealEnabled=$(az webapp config show --subscription $_subscriptionId --resource-group $_resourceGroup --name $_name --query "autoHealEnabled" --output tsv | grep -q "^true$" && echo "ENABLED" || echo "DISABLED")
-    _healthCheckPath=$(az webapp config show --subscription $_subscriptionId --resource-group $_resourceGroup --name $_name --query "healthCheckPath" --output tsv | grep -q . && echo "ENABLED" || echo "DISABLED")
-    _alwaysOn=$(az webapp config show --subscription $_subscriptionId --resource-group $_resourceGroup --name $_name --query "alwaysOn" --output tsv | grep -q "^true$" && echo "ENABLED" || echo "DISABLED")
-    _minTlsVersion=$(az webapp config show --subscription $_subscriptionId --resource-group $_resourceGroup --name $_name --query "minTlsVersion" --output tsv)
-    _ftpsState=$(az webapp config show --subscription $_subscriptionId --resource-group $_resourceGroup --name $_name --query "ftpsState" --output tsv) 
-             
+    # Fetch web apps list
+    _webApps=$(az webapp list --subscription $_subscriptionId --query "[].{name:name, resourceGroup:resourceGroup}" --output jsonc)
     
+    for item in $(echo "$_webApps" | jq -r '.[] | @base64'); do
+        _jq() {
+            echo ${item} | base64 --decode | jq -r ${1}
+        }
 
-    # Apply colors conditionally for each field
-    if [[ "$_autoHealEnabled" == "ENABLED" ]]; then
-        autoHealColor="<span style='color: green;'>$_autoHealEnabled</span>"
-    elif [[ "$_autoHealEnabled" == "DISABLED" ]]; then
-        autoHealColor="<span style='color: rgb(155, 27, 27);'>$_autoHealEnabled</span>"
-    else
-        autoHealColor="$_autoHealEnabled"
-    fi
+        _name=$(_jq '.name')
+        _resourceGroup=$(_jq '.resourceGroup')
 
-    if [[ "$_healthCheckPath" == "ENABLED" ]]; then
-        healthCheckColor="<span style='color: green;'>$_healthCheckPath</span>"
-    elif [[ "$_healthCheckPath" == "DISABLED" ]]; then
-        healthCheckColor="<span style='color: rgb(155, 27, 27);'>$_healthCheckPath</span>"
-    else
-        healthCheckColor="$_healthCheckPath"
-    fi
+        # Fetch app service configuration details
+        _autoHealEnabled=$(az webapp config show --subscription $_subscriptionId --resource-group $_resourceGroup --name $_name --query "autoHealEnabled" --output tsv | grep -q "^true$" && echo "ENABLED" || echo "DISABLED")
+        _healthCheckPath=$(az webapp config show --subscription $_subscriptionId --resource-group $_resourceGroup --name $_name --query "healthCheckPath" --output tsv | grep -q . && echo "ENABLED" || echo "DISABLED")
+        _alwaysOn=$(az webapp config show --subscription $_subscriptionId --resource-group $_resourceGroup --name $_name --query "alwaysOn" --output tsv | grep -q "^true$" && echo "ENABLED" || echo "DISABLED")
+        _minTlsVersion=$(az webapp config show --subscription $_subscriptionId --resource-group $_resourceGroup --name $_name --query "minTlsVersion" --output tsv)
+        _ftpsState=$(az webapp config show --subscription $_subscriptionId --resource-group $_resourceGroup --name $_name --query "ftpsState" --output tsv)
 
-    if [[ "$_alwaysOn" == "ENABLED" ]]; then
-        alwaysOnColor="<span style='color: green;'>$_alwaysOn</span>"
-    elif [[ "$_alwaysOn" == "DISABLED" ]]; then
-        alwaysOnColor="<span style='color: rgb(155, 27, 27);'>$_alwaysOn</span>"
-    else
-        alwaysOnColor="$_alwaysOn"
-    fi
-
-
-    if echo "$_minTlsVersion" | grep -qE '^(1\.[2-9]|[2-9]\.[0-9])'; then
-        _minTlsVersionStatus="$_minTlsVersion Secure"
-    else
-        _minTlsVersionStatus="$_minTlsVersion Vulnerable"
-    fi
-
-    # Compare and apply color formatting based on status
-    if [[ "$_minTlsVersionStatus" =~ "Secure" ]]; then
-          minTlsVersionColor="<span style='color: green;'>$_minTlsVersionStatus</span>"
-    elif [[ "$_minTlsVersionStatus" =~ "Vulnerable" ]]; then
-         minTlsVersionColor="<span style='color: rgb(155, 27, 27);'>$_minTlsVersionStatus</span>"
-    else
-          minTlsVersionColor="$_minTlsVersionStatus"
-    fi
-
-    if [[ "$_ftpsState" =~ "FtpsOnly" ]]; then
-         ftpStateColor="<span style='color: rgb(155, 27, 27);'>$_ftpsState</span>"
-    elif [[ "$_ftpsState" =~ "AllAllowed" ]]; then
-        ftpStateColor="<span style='color: rgb(155, 27, 27);'>$_ftpsState</span>"
-    else
-        ftpStateColor="$_ftpsState"
-    fi
-
-    # Append to HTML Table
-    echo "<tr><td>$_name</td><td>$autoHealColor</td><td>$healthCheckColor</td><td>$alwaysOnColor</td><td>$minTlsVersionColor</td><td>$ftpStateColor</td></tr>" >> $html_output
-done
-
-echo "</tbody></table>" >> $html_output
-
-_diplayAppServicePlanRecommendations_density=0
-_diplayAppServicePlanRecommendations_cost=0
-
-app_service_plans=$(az appservice plan list --subscription $_subscriptionId --query "[].{Name:name, ResourceGroup:resourceGroup, ZoneRedundant:zoneRedundant}" --output tsv)
-while IFS=$'\t' read -r name resource_group zoneEnabled; do
-    webapp_count=$(az webapp list --subscription $_subscriptionId --query "[?appServicePlanId=='/subscriptions/$_subscriptionId/resourceGroups/$resource_group/providers/Microsoft.Web/serverfarms/$name'] | length(@)" -o tsv)
-    webapp_info=$(az appservice plan show --name $name --subscription $_subscriptionId --resource-group $resource_group --query "{tier:sku.tier, size:sku.name, workers:sku.capacity}" --output json)
-    webapp_worker=$(echo "$webapp_info" | jq -r '.workers')
-    webapp_size=$(echo "$webapp_info" | jq -r '.size')
-    webapp_tier=$(echo "$webapp_info" | jq -r '.tier')
-
-  
-    if [ "$_diplayAppServicePlanRecommendations_density" -eq 0 ]; then
-        _diplayAppServicePlanRecommendations_density=1
-        echo "<table>" >> $html_output
-        echo "<thead><tr><th>APP SERVICE PLAN</th><th>SIZE</th><th>TIER</th><th>RECOMMENDED APPS COUNT</th><th>CURRENT APPS COUNT</th><th>Zone Enabled</th></tr></thead>" >> $html_output
-    fi
-
-    # Set colors based on webapp_count
-    if [ "$webapp_count" -gt 1 ]; then
-        HighCount="<span style='color: orange;'>$webapp_count</span>"
-    else
-        HighCount="$webapp_count"
-    fi
-		
-    # Determine the recommended number of apps based on the plan size
-    if [[ "$webapp_size" =~ ^(B1|S1|P1v2|I1v1|P0v3|P1)$ ]]; then
-        recommended_apps="8"
-    elif [[ "$webapp_size" =~ ^(B2|S2|P2v2|I2v1|P2)$ ]]; then
-        recommended_apps="16"
-    elif [[ "$webapp_size" =~ ^(B3|S3|P3v2|I3v1|P3)$ ]]; then
-        recommended_apps="32"
-    elif [[ "$webapp_size" =~ ^(P1v3|I1v2)$ ]]; then
-        recommended_apps="16"
-    elif [[ "$webapp_size" =~ ^(P2v3|I2v2)$ ]]; then
-        recommended_apps="32"
-    elif [[ "$webapp_size" =~ ^(P3v3|I3v2)$ ]]; then
-        recommended_apps="64"
-    elif [[ "$webapp_size" =~ ^(EP1)$ ]]; then
-        recommended_apps="N/A"
-    fi
-
-    shopt -s nocasematch
-    if [[ "$zoneEnabled" =~ ^true$ ]]; then
-    zone_Enabled="<span style='color: rgb(14, 145, 21);'>$zoneEnabled</span>"
-      else
-    zone_Enabled="<span style='color: rgb(216, 107, 4);'>$zoneEnabled</span>"
-    fi
-    shopt -u nocasematch
-   
- # Output to HTML Table
-    echo "<tr><td>${name}</td><td>${webapp_size}</td><td>${webapp_tier}</td><td>${recommended_apps}</td><td>${webapp_count}</td><td>${zone_Enabled}</td></tr>" >> $html_output
-
-    
-    # Density Recommendations
-    if [ "$webapp_count" -eq 0 ]; then
-        if [ "$_diplayAppServicePlanRecommendations_cost" -eq 0 ]; then
-            echo "<h4>App Service Plan Density Recommendations</h4>" >> $html_output
-            _diplayAppServicePlanRecommendations_cost=1
-            echo "<table>" >> $html_output
-			 echo "<p class='warning'>The following app service plan has no app services, review and delete to optimize the cost.</p>" >> $html_output
-            echo "<thead><tr><th>APP SERVICE PLAN</th><th>App Count</th></tr></thead>" >> $html_output
+        # Color formatting based on conditions
+        if [[ "$_autoHealEnabled" == "ENABLED" ]]; then
+            autoHealColor="<span style='color: #90EE90; font-weight: bold;'>$_autoHealEnabled</span>"
+        else
+            autoHealColor="<span style='color: #FFD700;'>$_autoHealEnabled</span>"
         fi
-        echo "<tr><td>$name</td><td>0</td></tr>" >> $html_output
-    fi
 
+        if [[ "$_healthCheckPath" == "ENABLED" ]]; then
+            healthCheckColor="<span style='color: #90EE90; font-weight: bold;'>$_healthCheckPath</span>"
+        else
+            healthCheckColor="<span style='color: #FFD700;'>$_healthCheckPath</span>"
+        fi
 
+        if [[ "$_alwaysOn" == "ENABLED" ]]; then
+            alwaysOnColor="<span style='color: #90EE90; font-weight: bold;'>$_alwaysOn</span>"
+        else
+            alwaysOnColor="<span style='color: #FFD700;'>$_alwaysOn</span>"
+        fi
 
-done <<<"$app_service_plans"
+        if echo "$_minTlsVersion" | grep -qE '^(1\.[2-9]|[2-9]\.[0-9])'; then
+            _minTlsVersionStatus="$_minTlsVersion Secure"
+        else
+            _minTlsVersionStatus="$_minTlsVersion Vulnerable"
+        fi
 
-# End HTML content
-echo "</tbody></table>" >> $html_output
+        if [[ "$_minTlsVersionStatus" =~ "Secure" ]]; then
+            minTlsVersionColor="<span style='color: #90EE90; font-weight: bold;'>$_minTlsVersionStatus</span>"
+        else
+            minTlsVersionColor="<span style='color: #FFD700;'>$_minTlsVersionStatus</span>"
+        fi
 
-# Adding the recommendation section on the right
-echo "<div class='right-sidebar'>" >> $html_output
-echo "<h3>Best Practices & Recommendations</h3>" >> $html_output
-echo "<ul>" >> $html_output
-echo "<li><strong>Auto Heal:</strong> Enable Auto Heal to automatically restart your app when it encounters issues. This enhances the availability of your app.</li>" >> $html_output
-echo "<li><strong>Health Check:</strong> Implement a health check to proactively monitor your app's health. This minimizes downtime and ensures your app is running optimally.</li>" >> $html_output
-echo "<li><strong>Always On:</strong> Always On keeps your app continuously warm, preventing time delays during the first request after idle periods, ensuring faster response times.</li>" >> $html_output
-echo "<li><strong>Density Check:</strong> Perform a density check on your App Service Plan to ensure your resources align with usage. This improves both performance and cost-efficiency.</li>" >> $html_output
-echo "</ul>" >> $html_output
-echo "</div>" >> $html_output
-echo "<footer><p style='text-align: center;'>End of Recommendations - More to Come</p></footer>" >> $html_output
-echo
+        # FTPS State check
+        if [[ "$_ftpsState" =~ "FtpsOnly" ]]; then
+            ftpStateColor="<span style='color: #FFD700;'>$_ftpsState</span>"
+        elif [[ "$_ftpsState" =~ "AllAllowed" ]]; then
+            ftpStateColor="<span style='color: #FFD700;'>$_ftpsState</span>"
+        else
+            ftpStateColor="<span style='color: #90EE90; font-weight: bold;'>$_ftpsState</span>"
+        fi
+
+        # Append to the HTML table
+        echo "<tr><td>$_name</td><td>$autoHealColor</td><td>$healthCheckColor</td><td>$alwaysOnColor</td><td>$minTlsVersionColor</td><td>$ftpStateColor</td></tr>" >> $html_output
+    done
+
+    echo "</tbody></table>" >> $html_output
+}
+
+# Function to generate App Service Plan Recommendations
+generate_app_service_plan_recommendations() {
+    
+    echo "<table><thead><tr><th>APP SERVICE PLAN</th><th>SIZE</th><th>TIER</th><th>RECOMMENDED APPS COUNT</th><th>CURRENT APPS COUNT</th><th>Zone Enabled</th></tr></thead><tbody>" >> $html_output
+
+    # Fetch app service plans list
+    app_service_plans=$(az appservice plan list --subscription $_subscriptionId --query "[].{Name:name, ResourceGroup:resourceGroup, ZoneRedundant:zoneRedundant}" --output tsv)
+
+    # Track if we should display the recommendation for zero-app service plans
+    _diplayAppServicePlanRecommendations_cost=0
+
+    while IFS=$'\t' read -r name resource_group zoneEnabled; do
+        webapp_count=$(az webapp list --subscription $_subscriptionId --query "[?appServicePlanId=='/subscriptions/$_subscriptionId/resourceGroups/$resource_group/providers/Microsoft.Web/serverfarms/$name'] | length(@)" -o tsv)
+        webapp_info=$(az appservice plan show --name $name --subscription $_subscriptionId --resource-group $resource_group --query "{tier:sku.tier, size:sku.name, workers:sku.capacity}" --output json)
+        
+        webapp_worker=$(echo "$webapp_info" | jq -r '.workers')
+        webapp_size=$(echo "$webapp_info" | jq -r '.size')
+        webapp_tier=$(echo "$webapp_info" | jq -r '.tier')
+
+        # Set color based on the number of web apps
+        if [ "$webapp_count" -gt 1 ]; then
+            HighCount="<span style='color: orange;'>$webapp_count</span>"
+        else
+            HighCount="$webapp_count"
+        fi
+
+        # Determine the recommended number of apps based on the plan size
+        if [[ "$webapp_size" =~ ^(B1|S1|P1v2|I1v1|P0v3|P1)$ ]]; then
+            recommended_apps="8"
+        elif [[ "$webapp_size" =~ ^(B2|S2|P2v2|I2v1|P2)$ ]]; then
+            recommended_apps="16"
+        elif [[ "$webapp_size" =~ ^(B3|S3|P3v2|I3v1|P3)$ ]]; then
+            recommended_apps="32"
+        elif [[ "$webapp_size" =~ ^(P1v3|I1v2)$ ]]; then
+            recommended_apps="16"
+        elif [[ "$webapp_size" =~ ^(P2v3|I2v2)$ ]]; then
+            recommended_apps="32"
+        elif [[ "$webapp_size" =~ ^(P3v3|I3v2)$ ]]; then
+            recommended_apps="64"
+        elif [[ "$webapp_size" =~ ^(EP1)$ ]]; then
+            recommended_apps="N/A"
+        fi
+
+        # Zone redundancy
+        shopt -s nocasematch
+        if [[ "$zoneEnabled" =~ ^true$ ]]; then
+            zone_Enabled="<span style='color: #FFD700;'>$zoneEnabled</span>"
+        else
+            zone_Enabled="<span style='color: #90EE90; font-weight: bold;'>$zoneEnabled</span>"
+        fi
+        shopt -u nocasematch
+     
+           # Density recommendation section if no apps in service plan
+        if [ "$webapp_count" -eq 0 ]; then
+            webapp_count="<span style='color: #FFD700;'> $webapp_count - Review and Delete the Plan </span>"         
+        fi
+
+        # Output the information to the HTML table
+        echo "<tr><td>${name}</td><td>${webapp_size}</td><td>${webapp_tier}</td><td>${recommended_apps}</td><td>${webapp_count}</td><td>${zone_Enabled}</td></tr>" >> $html_output
+
+    done <<< "$app_service_plans"
+
+    echo "</tbody></table>" >> $html_output
+}
+
+# Finalize the HTML structure and footer
+finalize_html() {
+   echo "</body></html>" >> $html_output
+}
+
+# Function to generate the Best Practices section
+generate_best_practices_reference() {
+   echo "<div class='container'>" >> $html_output
+    echo "<h2 text-align: left;> Azure App Service - Best Practices & References</h2>" >> $html_output
+
+    # Auto Heal Section
+    echo "<div class='section'>" >> $html_output
+    echo "<h3>Auto Heal</h3>" >> $html_output
+    echo "<p>Auto Heal allows your app to automatically restart when it encounters performance or availability issues. You can configure rules based on request count, memory usage, HTTP status codes, and more to trigger an automatic recovery.</p>" >> $html_output
+    echo "<p>This ensures high availability by proactively addressing failures before they impact users.</p>" >> $html_output
+    echo "<p><a href='https://learn.microsoft.com/en-us/azure/app-service/app-service-autoheal' target='_blank'>Learn more about Auto Heal</a></p>" >> $html_output
+    echo "</div>" >> $html_output
+
+    # Health Check Section
+    echo "<div class='section'>" >> $html_output
+    echo "<h3>Health Check</h3>" >> $html_output
+    echo "<p>Health Check continuously monitors your app's status by pinging a specific endpoint. If an instance is unresponsive, Azure App Service automatically removes it from the load balancer rotation and replaces it if needed.</p>" >> $html_output
+    echo "<p>Implementing a health check helps ensure that only healthy instances serve user requests, reducing downtime.</p>" >> $html_output
+    echo "<p><a href='https://learn.microsoft.com/en-us/azure/app-service/monitor-instances-health-check' target='_blank'>Learn more about Health Check</a></p>" >> $html_output
+    echo "</div>" >> $html_output
+
+    # Always On Section
+    echo "<div class='section'>" >> $html_output
+    echo "<h3>Always On</h3>" >> $html_output
+    echo "<p>When Always On is enabled, your application remains active at all times, preventing it from going idle. This eliminates cold start delays and ensures faster response times for incoming requests.</p>" >> $html_output
+    echo "<p>Always On is recommended for production apps that require consistent performance and immediate availability.</p>" >> $html_output
+    echo "<p><a href='https://learn.microsoft.com/en-us/azure/app-service/configure-common' target='_blank'>Learn more about Always On</a></p>" >> $html_output
+    echo "</div>" >> $html_output
+
+    # Density Check Section
+    echo "<div class='section'>" >> $html_output
+    echo "<h3>Density Check</h3>" >> $html_output
+    echo "<p>Density Check helps you optimize resource allocation by analyzing the number of applications running within an App Service Plan. Running too many apps on a single plan can lead to performance degradation.</p>" >> $html_output
+    echo "<p>Regularly reviewing density ensures a balance between cost and performance, helping you allocate resources efficiently.</p>" >> $html_output
+    echo "<p><a href='https://azure.github.io/AppService/2019/05/21/App-Service-Plan-Density-Check.html' target='_blank'>Learn more about Density Check</a></p>" >> $html_output
+    echo "</div>" >> $html_output
+
+    # Footer Section
+    echo "<div class='footer'>" >> $html_output
+    echo "<p>Note - Beta vesrion of Azure App Service Best Practices </p>" >> $html_output
+    echo "</div>" >> $html_output
+    echo "</div>" >> $html_output
+}
+
+# Main Execution Flow
+initialize_html
+generate_app_service_config_table
+generate_app_service_plan_recommendations
+finalize_html
+generate_best_practices_reference
+
+echo "HTML report generated successfully in $html_output"
